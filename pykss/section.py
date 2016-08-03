@@ -1,5 +1,6 @@
 import re
 
+from pykss.example import Example
 from pykss.modifier import Modifier
 
 
@@ -10,7 +11,6 @@ EXAMPLE_START = 'Example:'
 REFERENCE_START = 'Styleguide'
 
 reference_re = re.compile(r'%s ([\w\.]+)' % REFERENCE_START)
-optional_re = re.compile(r'\[(.*)\]\?')
 multiline_modifier_re = re.compile(r'^\s+(\w.*)')
 
 
@@ -24,6 +24,7 @@ class Section(object):
         self._description_lines = []
         self._modifiers = []
         self._example_lines = []
+        self._examples = []
         self._reference = None
 
         in_example = False
@@ -49,6 +50,7 @@ class Section(object):
             elif line.startswith(EXAMPLE_START):
                 in_example = True
                 in_modifiers = False
+                self.finish_example()
 
             elif line.startswith(REFERENCE_START):
                 in_example = False
@@ -64,8 +66,8 @@ class Section(object):
                 in_modifiers = False
                 self._description_lines.append(line)
 
+        self.finish_example()
         self._description = '\n'.join(self._description_lines).strip()
-        self.add_example('\n'.join(self._example_lines).strip())
 
     @property
     def description(self):
@@ -80,16 +82,10 @@ class Section(object):
         return self._modifiers
 
     @property
-    def example(self):
+    def examples(self):
         if not hasattr(self, '_modifiers'):
             self.parse()
-        return self._example
-
-    @property
-    def example_source(self):
-        if not hasattr(self, '_modifiers'):
-            self.parse()
-        return self._example_source
+        return self._examples
 
     @property
     def section(self):
@@ -97,8 +93,22 @@ class Section(object):
             self.parse()
         return self._reference
 
-    def add_example(self, example):
-        self._example_source = optional_re.sub('', example)
-        self._example = self._example_source.replace('$modifier_class', '')
+    def finish_example(self):
+        """Finish the current example.
+
+        While parsing an example, we build up the _example_lines list.  This
+        method takes those lines, creates an Example object from them, then
+        clears them out.
+
+        If _example_lines is empty, then this is a no-op.
+        """
+        if not self._example_lines:
+            return
+        example = Example('\n'.join(self._example_lines).strip())
+        # Add default style
+        example.add_style(None, None, '')
         for modifier in self._modifiers:
-            modifier.add_example(optional_re.sub(r'\1', example))
+            example.add_style(modifier.name, modifier.description,
+                              modifier.class_name)
+        self._examples.append(example)
+        self._example_lines = []
