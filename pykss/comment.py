@@ -3,7 +3,7 @@ import re
 
 
 single_line_re = re.compile(r'^\s*\/\/')
-single_line_strip_re = re.compile(r'\s*\/\/')
+single_line_strip_re = re.compile(r'^\s*\/\/')
 
 multi_line_start_re = re.compile(r'^\s*\/\*')
 multi_line_end_re = re.compile(r'.*\*\/')
